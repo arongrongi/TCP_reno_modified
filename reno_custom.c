@@ -20,12 +20,12 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
     struct tcp_sock *tp = tcp_sk(sk);
 
-    if (tcp_sk(sk)->snd_nxt - tcp_sk(sk)->snd_una >= 3) {
+    if (tcp_dupack_count(tp) >= 3) {
         printk(KERN_INFO "Fast Retransmit triggered\n");
-        tcp_enter_recovery(sk, false);  // 손실 복구 모드로 전환
+        tcp_enter_recovery(sk, false);
         tp->prior_cwnd = tp->snd_cwnd;
         tp->snd_cwnd = tp->snd_ssthresh;
-        tcp_retransmit_skb(sk, tcp_write_queue_head(sk));  // 패킷 재전송
+        tcp_send_loss_probe(sk);
     }
 
     if (tcp_is_cwnd_limited(sk)) {
@@ -44,10 +44,10 @@ void tcp_reno_event_ack(struct sock *sk, u32 ack)
 {
     struct tcp_sock *tp = tcp_sk(sk);
 
-    if (tcp_in_cwnd_reduction(sk)) {
+    if (tcp_in_recovery(sk)) {
         tp->snd_cwnd++;
         if (after(ack, tp->high_seq)) {
-            tcp_end_cwnd_reduction(sk);
+            tcp_end_recovery(sk);
             tp->snd_cwnd = tp->prior_cwnd;
         }
     }
