@@ -20,9 +20,9 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
     struct tcp_sock *tp = tcp_sk(sk);
 
-    if (tcp_dupack_count(tp) >= 3) {
+    if (tcp_sk(sk)->snd_nxt - tcp_sk(sk)->snd_una >= 3) {
         printk(KERN_INFO "Fast Retransmit triggered\n");
-        tcp_enter_recovery(sk);
+        tcp_enter_loss(sk);
         tp->prior_cwnd = tp->snd_cwnd;
         tp->snd_cwnd = tp->snd_ssthresh;
         tcp_send_loss_probe(sk);
@@ -44,10 +44,10 @@ void tcp_reno_event_ack(struct sock *sk, u32 ack)
 {
     struct tcp_sock *tp = tcp_sk(sk);
 
-    if (tcp_in_recovery(sk)) {
+    if (tcp_in_cwnd_reduction(sk)) {
         tp->snd_cwnd++;
         if (after(ack, tp->high_seq)) {
-            tcp_end_recovery(sk);
+            tcp_end_cwnd_reduction(sk);
             tp->snd_cwnd = tp->prior_cwnd;
         }
     }
@@ -63,7 +63,6 @@ static struct tcp_congestion_ops tcp_reno_custom = {
     .ssthresh       = tcp_reno_ssthresh,
     .cong_avoid     = tcp_reno_cong_avoid,
     .undo_cwnd      = tcp_reno_undo_cwnd,
-    .event_ack      = tcp_reno_event_ack,
     .owner          = THIS_MODULE,
     .name           = "reno_custom",
 };
