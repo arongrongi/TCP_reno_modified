@@ -3,6 +3,29 @@
 #include <net/tcp.h>
 #include <linux/inet.h>
 
+static int tcp_dupack_count(const struct tcp_sock *tp)
+{
+    return tp->duplicate_acks;
+}
+
+static bool tcp_in_recovery(const struct tcp_sock *tp)
+{
+    return tp->snd_cwnd < tp->snd_ssthresh;
+}
+
+static void tcp_enter_recovery(struct sock *sk, bool ece_ack)
+{
+    struct tcp_sock *tp = tcp_sk(sk);
+    tp->high_seq = tp->snd_nxt;
+    tp->snd_cwnd = tp->snd_ssthresh;
+}
+
+static void tcp_end_recovery(struct sock *sk)
+{
+    struct tcp_sock *tp = tcp_sk(sk);
+    tp->snd_cwnd = tp->prior_cwnd;
+}
+
 void tcp_reno_init(struct sock *sk)
 {
     tcp_sk(sk)->snd_ssthresh = TCP_INFINITE_SSTHRESH;
@@ -21,14 +44,12 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
     struct tcp_sock *tp = tcp_sk(sk);
 
-    if (tcp_sk(sk)->snd_cwnd >= tp->snd_ssthresh) {
-        if (tcp_dupack_count(tp) >= 3) {
-            printk(KERN_INFO "Fast Retransmit triggered\n");
-            tcp_enter_recovery(sk, false);
-            tp->prior_cwnd = tp->snd_cwnd;
-            tp->snd_cwnd = tp->snd_ssthresh;
-            tcp_send_loss_probe(sk);
-        }
+    if (tcp_dupack_count(tp) >= 3) {
+        printk(KERN_INFO "Fast Retransmit triggered\n");
+        tcp_enter_recovery(sk, false);
+        tp->prior_cwnd = tp->snd_cwnd;
+        tp->snd_cwnd = tp->snd_ssthresh;
+        tcp_send_loss_probe(sk);
     }
 
     if (tcp_is_cwnd_limited(sk)) {
@@ -47,7 +68,7 @@ void tcp_reno_event_ack(struct sock *sk, u32 ack)
 {
     struct tcp_sock *tp = tcp_sk(sk);
 
-    if (tcp_in_recovery(sk)) {
+    if (tcp_in_recovery(tp)) {
         tp->snd_cwnd++;
         if (after(ack, tp->high_seq)) {
             tcp_end_recovery(sk);
