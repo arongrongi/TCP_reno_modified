@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <net/tcp.h>
+#include <linux/inet.h>
 
 void tcp_reno_init(struct sock *sk)
 {
@@ -20,12 +21,14 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
     struct tcp_sock *tp = tcp_sk(sk);
 
-    if (tcp_dupack_count(tp) >= 3) {
-        printk(KERN_INFO "Fast Retransmit triggered\n");
-        tcp_enter_recovery(sk, false);
-        tp->prior_cwnd = tp->snd_cwnd;
-        tp->snd_cwnd = tp->snd_ssthresh;
-        tcp_send_loss_probe(sk);
+    if (tcp_sk(sk)->snd_cwnd >= tp->snd_ssthresh) {
+        if (tcp_dupack_count(tp) >= 3) {
+            printk(KERN_INFO "Fast Retransmit triggered\n");
+            tcp_enter_recovery(sk, false);
+            tp->prior_cwnd = tp->snd_cwnd;
+            tp->snd_cwnd = tp->snd_ssthresh;
+            tcp_send_loss_probe(sk);
+        }
     }
 
     if (tcp_is_cwnd_limited(sk)) {
@@ -69,9 +72,7 @@ static struct tcp_congestion_ops tcp_reno_custom = {
 
 static int __init tcp_reno_module_init(void)
 {
-    if (tcp_register_congestion_control(&tcp_reno_custom))
-        return -ENOBUFS;
-    return 0;
+    return tcp_register_congestion_control(&tcp_reno_custom);
 }
 
 static void __exit tcp_reno_module_exit(void)
