@@ -5,7 +5,7 @@
 
 static int tcp_dupack_count(const struct tcp_sock *tp)
 {
-    return tp->duplicate_acks;
+    return tp->retrans_out;
 }
 
 static bool tcp_in_recovery(const struct tcp_sock *tp)
@@ -13,7 +13,7 @@ static bool tcp_in_recovery(const struct tcp_sock *tp)
     return tp->snd_cwnd < tp->snd_ssthresh;
 }
 
-static void tcp_enter_recovery(struct sock *sk, bool ece_ack)
+void tcp_enter_recovery(struct sock *sk, bool ece_ack)
 {
     struct tcp_sock *tp = tcp_sk(sk);
     tp->high_seq = tp->snd_nxt;
