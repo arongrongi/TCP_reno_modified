@@ -47,7 +47,6 @@ void tcp_reno_event_ack(struct sock *sk, u32 ack)
     if (tcp_in_cwnd_reduction(sk)) {
         tp->snd_cwnd++;
         if (after(ack, tp->high_seq)) {
-            tcp_end_cwnd_reduction(sk);
             tp->snd_cwnd = tp->prior_cwnd;
         }
     }
