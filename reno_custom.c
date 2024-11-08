@@ -49,7 +49,6 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
         tcp_enter_recovery(sk, false);
         tp->prior_cwnd = tp->snd_cwnd;
         tp->snd_cwnd = tp->snd_ssthresh;
-        tcp_send_loss_probe(sk);
     }
 
     if (tcp_is_cwnd_limited(sk)) {
